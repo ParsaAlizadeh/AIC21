@@ -1,5 +1,5 @@
 #include "AI.h"
-#include <iostream>
+#include <bits/stdc++.h>
 #include "Models/enums.h"
 
 using namespace std;
@@ -8,14 +8,16 @@ Answer *AI::turn(Game *game) {
     const Ant* me = game->getAnt();
 
     int viewDist = me->getViewDistance();
-    int targetX = -1, targetY = -1;
+    int targetX = -1, targetY = -1, dist = -1;
     if (me->getType() == KARGAR) {
-        for (int i = 0; i < viewDist; i++) {
-            for (int j = 0; j < viewDist; j++) {
-                const Cell* cell = game->getAnt()->getNeighborCell(i, j);
-                if (cell && cell->getResource()->getType() != NONE) {
+        for (int i = -viewDist; i <= viewDist; i++) {
+            for (int j = -viewDist; j <= viewDist; j++) {
+                const Cell* cell = me->getNeighborCell(i, j);
+                int _dist = abs(i) + abs(j);
+                if (cell && cell->getResource()->getType() != NONE && (dist == -1 || _dist < dist)) {
                     targetX = cell->getX();
                     targetY = cell->getY();
+                    dist = _dist;
                     break;
                 }
             }
@@ -24,8 +26,13 @@ Answer *AI::turn(Game *game) {
         }
     }
 
+    if (me->getCurrentResource()->getType() != NONE) {
+        targetX = game->getBaseX();
+        targetY = game->getBaseY();
+    }
+
     if (targetX == -1) {
-        return new Answer(UP, "I'm searching up area!", 5);
+        return new Answer(LEFT, "up", 5);
     }
 
     int x = me->getX();
@@ -43,5 +50,5 @@ Answer *AI::turn(Game *game) {
     else {
         direction = UP;
     }
-    return new Answer(direction, "I found a resource and I'm going to get it! :)", 10);
+    return new Answer(direction, "res", 10);
 }
