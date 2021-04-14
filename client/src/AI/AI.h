@@ -7,8 +7,10 @@
 
 class AI {
 private:
+    int randid;
     MyMap mymap;
 public:
+    AI();
     Answer* turn(Game *game);
 };
 

@@ -35,3 +35,9 @@ void MyMap::update(int x, int y, int turn, CellState state, bool self) {
         self && lastcell.is_self()
     );
 }
+
+int MyMap::distance(int x1, int y1, int x2, int y2) const {
+    int dx = min((x1 - x2 + W) % W, (x2 - x1 + W) % W);
+    int dy = min((y1 - y2 + H) % H, (y2 - y1 + H) % H);
+    return dx + dy;
+}
