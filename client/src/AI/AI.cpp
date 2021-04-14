@@ -11,6 +11,7 @@ AI::AI() {
 }
 
 Answer *AI::turn(Game *game) {
+    /* initialize turn and map */
     int turn = 1;
     for (const Chat* chat : game->getChatBox()->getAllChats()) {
         turn = max(turn, chat->getTurn() + 1);
@@ -18,6 +19,7 @@ Answer *AI::turn(Game *game) {
     const int W = game->getMapWidth(), H = game->getMapHeight();
     mymap.init(W, H, turn);
 
+    /* find base attacks */
     for (const Attack* attack : game->getAttacks()) {
         if (!attack->isAttackerEnemy())
             continue;
@@ -30,10 +32,12 @@ Answer *AI::turn(Game *game) {
         }
     }
 
+    /* constants */
     const Ant* me = game->getAnt();
     const int me_x = me->getX(), me_y = me->getY();
     const int viewdist = game->getViewDistance();
 
+    /* update visited cells */
     for (int dx = -viewdist; dx <= viewdist; dx++)
     for (int dy = -viewdist; dy <= viewdist; dy++) {
         const Cell* cell = me->getNeighborCell(dx, dy);
@@ -47,6 +51,7 @@ Answer *AI::turn(Game *game) {
         mymap.update(cell->getX(), cell->getY(), turn, state, true);
     }
 
+    /* log mymap */
     if (turn == 1)
         cout << W << " " << H << endl;
     cout << me_x << " " << me_y << endl;
