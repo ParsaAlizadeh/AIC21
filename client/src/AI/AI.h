@@ -3,13 +3,13 @@
 
 #include "Models/Game.h"
 #include "Models/Answer.h"
+#include "MyMap.h"
 
 class AI {
+private:
+    MyMap mymap;
 public:
     Answer* turn(Game *game);
-
-private:
-    static int agent_id;    //Random generated Id for optional use
 };
 
 #endif // AIC21_CLIENT_CPP_AI_H
