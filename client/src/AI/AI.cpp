@@ -10,6 +10,27 @@ AI::AI() {
     freopen(("/tmp/ai/log_" + to_string(randid)).c_str(), "w", stdout);
 }
 
+string AI::normal_str(string binary) {
+    while (binary.size() % 7) {
+        binary.push_back('0');
+    }
+    string result;
+    for (int i = 0; i < binary.size(); i += 7) {
+        bitset<7> ch(binary, i, 7);
+        result.push_back((char) ch.to_ulong());
+    }
+    return result;
+}
+
+string AI::binary_str(string normal) {
+    string result;
+    for (char c : normal) {
+        bitset<7> ch((int) c);
+        result += ch.to_string();
+    }
+    return result;
+}
+
 Answer *AI::turn(Game *game) {
     /* initialize turn and map */
     live_turn++;
@@ -19,6 +40,16 @@ Answer *AI::turn(Game *game) {
     }
     const int W = game->getMapWidth(), H = game->getMapHeight();
     mymap.init(W, H, turn);
+
+    /* read messages */
+    for (const Chat* chat : game->getChatBox()->getAllChats())
+    if (live_turn == 1 || chat->getTurn() == turn - 1) {
+        string binary = binary_str(chat->getText());
+        for (int i = 0; i + 14 <= binary.size(); i += 14) {
+            MyCell cell = MyCell::decode(binary.substr(i, 14), chat->getTurn());
+            mymap.update(cell);
+        }
+    }
 
     /* find base attacks */
     for (const Attack* attack : game->getAttacks()) {
@@ -114,6 +145,11 @@ Answer *AI::turn(Game *game) {
     if (finale == CENTER) {
         finale = Direction(rand() % 4 + 1);
     }
+
+    /* make a response for updates */
+    string response;
+    int importance;
+    tie(response, importance) = mymap.get_updates(turn, 32 * 7);
     
-    return new Answer(finale, "nothing", 0);
+    return new Answer(finale, normal_str(response), importance);
 }
