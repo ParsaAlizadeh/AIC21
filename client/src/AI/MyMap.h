@@ -17,8 +17,11 @@ public:
     int get_enemyY() const { return enemyY; }
     const MyCell& at(int x, int y) const;
     void update(int x, int y, int turn, CellState state, bool self);
+    void update(const MyCell& cell);
     int distance(int x1, int y1, int x2, int y2) const;
     bool is_danger(int x, int y) const;
+
+    const pair<string, int> get_updates(int turn, int max_size) const;
 
     static int addmod(int a, int b, int md);
 };

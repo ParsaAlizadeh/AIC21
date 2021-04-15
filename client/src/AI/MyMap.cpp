@@ -38,6 +38,10 @@ void MyMap::update(int x, int y, int turn, CellState state, bool self) {
     );
 }
 
+void MyMap::update(const MyCell& cell) {
+    return update(cell.getX(), cell.getY(), cell.get_seen(), cell.get_state(), cell.is_self());
+}
+
 int MyMap::distance(int x1, int y1, int x2, int y2) const {
     int dx = min((x1 - x2 + W) % W, (x2 - x1 + W) % W);
     int dy = min((y1 - y2 + H) % H, (y2 - y1 + H) % H);
@@ -53,4 +57,36 @@ bool MyMap::is_danger(int x, int y) const {
 int MyMap::addmod(int a, int b, int md) {
     int c = (a + b) % md;
     return c < 0 ? c + md : c;
+}
+
+const pair<string, int> MyMap::get_updates(int turn, int max_size) const {
+    vector<const MyCell*> cells;
+    for (int x = 0; x < W; x++)
+    for (int y = 0; y < H; y++) {
+        const MyCell& cell = at(x, y);
+        if (!cell.is_self())
+            continue;
+        CellState state = cell.get_state();
+        if (state != C_WALL && state != C_BASE && cell.get_seen() < turn)
+            continue;
+        cells.push_back(&cell);
+    }
+    if (cells.empty())
+        return {"", 0};
+    random_shuffle(begin(cells), end(cells));
+    stable_sort(begin(cells), end(cells),
+        [&] (const MyCell* u, const MyCell* v) {
+            return u->get_importance() > v->get_importance();
+        }
+    );
+    string result;
+    int importance = 0;
+    for (const MyCell* cell : cells) {
+        string cur = cell->encode();
+        if (result.size() + cur.size() > max_size)
+            break;
+        result += cur;
+        importance = max(importance, cell->get_importance());
+    }
+    return {result, importance};
 }
