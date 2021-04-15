@@ -4,10 +4,11 @@
 #include "Models/Game.h"
 #include "Models/Answer.h"
 #include "MyMap.h"
+#include "Search.h"
 
 class AI {
 private:
-    int randid;
+    int randid, live_turn;
     MyMap mymap;
 public:
     AI();

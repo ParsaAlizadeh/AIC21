@@ -2,6 +2,8 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+MyMap::MyMap() : enemyX(-1), enemyY(-1) {}
+
 void MyMap::init(int w, int h, int turn) {
     if (W == 0) {
         W = w;
@@ -40,4 +42,15 @@ int MyMap::distance(int x1, int y1, int x2, int y2) const {
     int dx = min((x1 - x2 + W) % W, (x2 - x1 + W) % W);
     int dy = min((y1 - y2 + H) % H, (y2 - y1 + H) % H);
     return dx + dy;
+}
+
+bool MyMap::is_danger(int x, int y) const {
+    if (enemyX < 0 || enemyY < 0)
+        return false;
+    return distance(x, y, enemyX, enemyY) <= 6;
+}
+
+int MyMap::addmod(int a, int b, int md) {
+    int c = (a + b) % md;
+    return c < 0 ? c + md : c;
 }
