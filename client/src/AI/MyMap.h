@@ -21,7 +21,7 @@ public:
     int distance(int x1, int y1, int x2, int y2) const;
     bool is_danger(int x, int y) const;
 
-    const pair<string, int> get_updates(int turn, int max_size) const;
+    pair<string, int> get_updates(int turn, int max_size) const;
 
     static int addmod(int a, int b, int md);
 };

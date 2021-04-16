@@ -1,23 +1,23 @@
 #ifndef AIC21_CLIENT_CPP_AI_H
 #define AIC21_CLIENT_CPP_AI_H
 
-#include <string>
+#include <bits/stdc++.h>
 #include "Models/Game.h"
 #include "Models/Answer.h"
 #include "MyMap.h"
 #include "Search.h"
-using std::string;
 
 class AI {
 private:
     int randid, live_turn;
+    std::pair<int, int> goal;
     MyMap mymap;
 public:
     AI();
     Answer* turn(Game *game);
 
-    static string binary_str(string normal);
-    static string normal_str(string binary);
+    static std::string binary_str(std::string normal);
+    static std::string normal_str(std::string binary);
 };
 
 #endif // AIC21_CLIENT_CPP_AI_H
