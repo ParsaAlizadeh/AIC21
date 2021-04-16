@@ -1,13 +1,13 @@
 #include "AI.h"
 #include <bits/stdc++.h>
 #include "Models/enums.h"
-
 using namespace std;
 
 AI::AI() {
     srand(time(nullptr));
     randid = rand() % 128;
     freopen(("/tmp/ai/log_" + to_string(randid)).c_str(), "w", stdout);
+    goal = {-1, -1};
 }
 
 string AI::normal_str(string binary) {
@@ -98,6 +98,11 @@ Answer *AI::turn(Game *game) {
     const Search from_me(mymap, me_x, me_y, false);
     const Search from_base(mymap, base_x, base_y, false);
 
+    /* reset goal, based on search */
+    if (goal != make_pair(-1, -1) && from_me.to(goal.first, goal.second) == CENTER) {
+        goal = {-1, -1};
+    }
+
     /* kargar put resource back */
     if (finale == CENTER && me->getCurrentResource()->getValue() > 0) {
         finale = from_me.to(base_x, base_y);
@@ -124,6 +129,10 @@ Answer *AI::turn(Game *game) {
         const Search to_attack(mymap, me_x, me_y, true);
         finale = to_attack.to(mymap.get_enemyX(), mymap.get_enemyY());
     }
+    /* just to the latest goal */
+    if (finale == CENTER && goal != make_pair(-1, -1)) {
+        finale = from_me.to(goal.first, goal.second);
+    }
     /* see dark areas of mymap */
     if (finale == CENTER) {
         int best_dist = INT_MAX;
@@ -138,6 +147,7 @@ Answer *AI::turn(Game *game) {
             if (dist <= best_dist) {
                 best_dist = dist;
                 finale = from_me.to(i, j);
+                goal = {i, j};
             }
         }
     }

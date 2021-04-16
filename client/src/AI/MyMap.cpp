@@ -59,7 +59,7 @@ int MyMap::addmod(int a, int b, int md) {
     return c < 0 ? c + md : c;
 }
 
-const pair<string, int> MyMap::get_updates(int turn, int max_size) const {
+pair<string, int> MyMap::get_updates(int turn, int max_size) const {
     vector<const MyCell*> cells;
     for (int x = 0; x < W; x++)
     for (int y = 0; y < H; y++) {
