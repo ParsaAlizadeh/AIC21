@@ -21,7 +21,7 @@ const MyCell& MyMap::at(int x, int y) const {
 }
 
 void MyMap::update(int x, int y, int turn, CellState state, bool self) {
-    auto lastcell = at(x, y);
+    const MyCell& lastcell = at(x, y);
     if (state == C_BASE) {
         enemyX = x;
         enemyY = y;

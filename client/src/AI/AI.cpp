@@ -89,7 +89,7 @@ Answer *AI::turn(Game *game) {
     cout << me_x << " " << me_y << endl;
     for (int i = 0; i < W; i++)
     for (int j = 0; j < H; j++) {
-        auto cell = mymap.at(i, j);
+        const MyCell& cell = mymap.at(i, j);
         cout << (int)cell.get_state() << " " << cell.is_self() << " \n"[j==H-1];
     }
 
@@ -122,7 +122,7 @@ Answer *AI::turn(Game *game) {
         for (int y = 0; y < H; y++) {
             if (from_me.get_dist(x, y) < 0)
                 continue;
-            auto cell = mymap.at(x, y);
+            const MyCell& cell = mymap.at(x, y);
             if (cell.get_state() != C_RES)
                 continue;
             int dist = from_me.get_dist(x, y) + from_base.get_dist(x, y);
@@ -146,7 +146,7 @@ Answer *AI::turn(Game *game) {
         for (int j = 0; j < H; j++) {
             if (from_me.get_dist(i, j) < 0)
                 continue;
-            auto cell = mymap.at(i, j);
+            const MyCell& cell = mymap.at(i, j);
             if (cell.get_state() != C_UNKNOWN)
                 continue;
             int dist = max(from_me.get_dist(i, j), from_base.get_dist(i, j));

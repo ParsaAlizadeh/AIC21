@@ -18,7 +18,7 @@ Search::Search(const MyMap& mymap, int cx, int cy, bool danger) :
     while (!q.empty()) {
         int ux = q.front(); q.pop();
         int uy = q.front(); q.pop();
-        auto ucell = mymap.at(ux, uy);
+        const MyCell& ucell = mymap.at(ux, uy);
         random_shuffle(_dir, _dir + 4);
         for (int i : _dir) {
             int vx = mymap.addmod(ux, dirx[i], W);
@@ -27,7 +27,7 @@ Search::Search(const MyMap& mymap, int cx, int cy, bool danger) :
                 continue;
             if (!danger && mymap.is_danger(vx, vy))
                 continue;
-            auto vcell = mymap.at(vx, vy);
+            const MyCell& vcell = mymap.at(vx, vy);
             if (vcell.get_state() == C_WALL)
                 continue;
             q.push(vx); q.push(vy);
