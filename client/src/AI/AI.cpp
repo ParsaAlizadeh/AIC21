@@ -7,7 +7,6 @@ AI::AI() {
     srand(time(nullptr));
     randid = rand() % 128;
     freopen(("/tmp/ai/log_" + to_string(randid)).c_str(), "w", stdout);
-    goal = {-1, -1};
 }
 
 string AI::normal_str(string binary) {
@@ -98,14 +97,23 @@ Answer *AI::turn(Game *game) {
     const Search from_me(mymap, me_x, me_y, false);
     const Search from_base(mymap, base_x, base_y, false);
 
-    /* reset goal, based on search */
-    if (goal != make_pair(-1, -1) && from_me.to(goal.first, goal.second) == CENTER) {
-        goal = {-1, -1};
+    /* reset target, based on search */
+    if (target_rule && target_rule(mymap, from_me)) {
+        target_rule = nullptr;
     }
 
     /* kargar put resource back */
     if (finale == CENTER && me->getCurrentResource()->getValue() > 0) {
         finale = from_me.to(base_x, base_y);
+    }
+    /* sarbaz attack to the base */
+    if (finale == CENTER && me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
+        const Search to_attack(mymap, me_x, me_y, true);
+        finale = to_attack.to(mymap.get_enemyX(), mymap.get_enemyY());
+    }
+    /* just to the latest target */
+    if (finale == CENTER && target_rule) {
+        finale = from_me.to(target.first, target.second);
     }
     /* kargar find the nearest resource */
     if (finale == CENTER && me->getType() == KARGAR) {
@@ -121,17 +129,15 @@ Answer *AI::turn(Game *game) {
             if (dist < best_dist) {
                 best_dist = dist;
                 finale = from_me.to(x, y);
+                target = {x, y};
             }
         }
-    }
-    /* sarbaz attack to the base */
-    if (finale == CENTER && me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
-        const Search to_attack(mymap, me_x, me_y, true);
-        finale = to_attack.to(mymap.get_enemyX(), mymap.get_enemyY());
-    }
-    /* just to the latest goal */
-    if (finale == CENTER && goal != make_pair(-1, -1)) {
-        finale = from_me.to(goal.first, goal.second);
+        target_rule = [=] (const MyMap& mymap, const Search& from_me) {
+            return (
+                from_me.to(target.first, target.second) == CENTER ||
+                mymap.at(target.first, target.second).get_state() != C_RES
+            );
+        };
     }
     /* see dark areas of mymap */
     if (finale == CENTER) {
@@ -147,9 +153,14 @@ Answer *AI::turn(Game *game) {
             if (dist <= best_dist) {
                 best_dist = dist;
                 finale = from_me.to(i, j);
-                goal = {i, j};
+                target = {i, j};
             }
         }
+        target_rule = [=] (const MyMap& mymap, const Search& from_me) {
+            return (
+                from_me.to(target.first, target.second) == CENTER
+            );
+        };
     }
     /* random walk */
     if (finale == CENTER) {

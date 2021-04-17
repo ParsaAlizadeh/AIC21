@@ -10,8 +10,9 @@
 class AI {
 private:
     int randid, live_turn;
-    std::pair<int, int> goal;
     MyMap mymap;
+    std::pair<int, int> target;
+    std::function<bool(const MyMap&, const Search&)> target_rule;
 public:
     AI();
     Answer* turn(Game *game);
