@@ -10,13 +10,14 @@
 class AI {
 private:
     int randid, live_turn;
+    bool is_explorer;
     MyMap mymap;
     std::pair<int, int> target;
     std::function<bool(const MyMap&, const Search&)> target_rule;
 public:
     AI();
     Answer* turn(Game *game);
-    
+
     Direction decide(Game *game, const Search& from_me, const Search& from_base);
     bool find_resource(Game *game, const Search& from_me, const Search& from_base);
     bool find_dark(Game *game, const Search& from_me, const Search& from_base);

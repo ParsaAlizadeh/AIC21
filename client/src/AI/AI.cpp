@@ -6,6 +6,7 @@ using namespace std;
 AI::AI() {
     srand(time(nullptr));
     randid = rand() % 128;
+    live_turn = 0;
     freopen(("/tmp/ai/log_" + to_string(randid)).c_str(), "w", stdout);
 }
 
@@ -37,8 +38,19 @@ Answer *AI::turn(Game *game) {
     for (const Chat* chat : game->getChatBox()->getAllChats()) {
         turn = max(turn, chat->getTurn() + 1);
     }
+
+    /* constants */
+    const Ant* me = game->getAnt();
+    const int me_x = me->getX(), me_y = me->getY();
+    const int base_x = game->getBaseX(), base_y = game->getBaseY();
+    const int viewdist = game->getViewDistance();
     const int W = game->getMapWidth(), H = game->getMapHeight();
+
+    /* pre-phase init */
     mymap.init(W, H, turn);
+    if (live_turn == 1) {
+        is_explorer = (rand() % 5 == 0) && (me->getType() == SARBAZ);
+    }
 
     /* read messages */
     for (const Chat* chat : game->getChatBox()->getAllChats())
@@ -62,12 +74,6 @@ Answer *AI::turn(Game *game) {
             mymap.update(x1, y1, turn, C_BASE, true);
         }
     }
-
-    /* constants */
-    const Ant* me = game->getAnt();
-    const int me_x = me->getX(), me_y = me->getY();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
-    const int viewdist = game->getViewDistance();
 
     /* update visited cells */
     for (int dx = -viewdist; dx <= viewdist; dx++)
@@ -134,8 +140,8 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
         return from_me.to(target.first, target.second);
     }
 
-    /* kargar find the nearest resource */
-    if (me->getType() == KARGAR && find_resource(game, from_me, from_base)) {
+    /* non-explorers find the nearest resource */
+    if (!is_explorer && find_resource(game, from_me, from_base)) {
         return from_me.to(target.first, target.second);
     }
 
@@ -156,6 +162,8 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
     const int viewdist = game->getViewDistance();
 
     int best_dist = INT_MAX;
+    int me_dist = 0;
+
     for (int x = 0; x < W; x++)
     for (int y = 0; y < H; y++) {
         if (from_me.get_dist(x, y) < 0)
@@ -166,6 +174,11 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
         int dist = from_me.get_dist(x, y) + from_base.get_dist(x, y);
         if (dist < best_dist) {
             best_dist = dist;
+            me_dist = from_me.get_dist(x, y);
+        }
+        if (dist <= best_dist && from_me.get_dist(x, y) <= me_dist) {
+            best_dist = dist;
+            me_dist = from_me.get_dist(x, y);
             target = {x, y};
         }
     }
