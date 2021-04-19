@@ -93,7 +93,6 @@ Answer *AI::turn(Game *game) {
         cout << (int)cell.get_state() << " " << cell.is_self() << " \n"[j==H-1];
     }
 
-    Direction finale = CENTER;
     const Search from_me(mymap, me_x, me_y, false);
     const Search from_base(mymap, base_x, base_y, false);
 
@@ -102,21 +101,42 @@ Answer *AI::turn(Game *game) {
         target_rule = nullptr;
     }
 
+    Direction finale = decide(game, from_me, from_base);
+
+    /* make a response for updates */
+    string response;
+    int importance;
+    tie(response, importance) = mymap.get_updates(turn, 32 * 7);
+    
+    return new Answer(finale, normal_str(response), importance);
+}
+
+
+Direction AI::decide(Game *game, const Search& from_me, const Search& from_base) {
+    const Ant* me = game->getAnt();
+    const int W = game->getMapWidth(), H = game->getMapHeight();
+    const int me_x = me->getX(), me_y = me->getY();
+    const int base_x = game->getBaseX(), base_y = game->getBaseY();
+    const int viewdist = game->getViewDistance();
+    
     /* kargar put resource back */
-    if (finale == CENTER && me->getCurrentResource()->getValue() > 0) {
-        finale = from_me.to(base_x, base_y);
+    if (me->getCurrentResource()->getValue() > 0) {
+        return from_me.to(base_x, base_y);
     }
+
     /* sarbaz attack to the base */
-    if (finale == CENTER && me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
-        const Search to_attack(mymap, me_x, me_y, true);
-        finale = to_attack.to(mymap.get_enemyX(), mymap.get_enemyY());
+    if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
+        const Search attack(mymap, me_x, me_y, true);
+        return attack.to(mymap.get_enemyX(), mymap.get_enemyY());
     }
+
     /* just to the latest target */
-    if (finale == CENTER && target_rule) {
-        finale = from_me.to(target.first, target.second);
+    if (target_rule) {
+        return from_me.to(target.first, target.second);
     }
+
     /* kargar find the nearest resource */
-    if (finale == CENTER && me->getType() == KARGAR) {
+    if (me->getType() == KARGAR) {
         int best_dist = INT_MAX;
         for (int x = 0; x < W; x++)
         for (int y = 0; y < H; y++) {
@@ -128,19 +148,22 @@ Answer *AI::turn(Game *game) {
             int dist = from_me.get_dist(x, y) + from_base.get_dist(x, y);
             if (dist < best_dist) {
                 best_dist = dist;
-                finale = from_me.to(x, y);
                 target = {x, y};
             }
         }
-        target_rule = [=] (const MyMap& mymap, const Search& from_me) {
-            return (
-                from_me.to(target.first, target.second) == CENTER ||
-                mymap.at(target.first, target.second).get_state() != C_RES
-            );
-        };
+        if (best_dist < INT_MAX) {
+            target_rule = [=] (const MyMap& mymap, const Search& from_me) {
+                return (
+                    from_me.to(target.first, target.second) == CENTER ||
+                    mymap.at(target.first, target.second).get_state() != C_RES
+                );
+            };
+            return from_me.to(target.first, target.second);
+        }
     }
-    /* see dark areas of mymap */
-    if (finale == CENTER) {
+
+    /* see dark areas of mymap */ 
+    {
         int best_dist = INT_MAX;
         for (int i = 0; i < W; i++)
         for (int j = 0; j < H; j++) {
@@ -152,25 +175,19 @@ Answer *AI::turn(Game *game) {
             int dist = max(from_me.get_dist(i, j), from_base.get_dist(i, j));
             if (dist <= best_dist) {
                 best_dist = dist;
-                finale = from_me.to(i, j);
                 target = {i, j};
             }
         }
-        target_rule = [=] (const MyMap& mymap, const Search& from_me) {
-            return (
-                from_me.to(target.first, target.second) == CENTER
-            );
-        };
-    }
-    /* random walk */
-    if (finale == CENTER) {
-        finale = Direction(rand() % 4 + 1);
+        if (best_dist < INT_MAX) {
+            target_rule = [=] (const MyMap& mymap, const Search& from_me) {
+                return (
+                    from_me.to(target.first, target.second) == CENTER
+                );
+            };
+            return from_me.to(target.first, target.second);
+        }
     }
 
-    /* make a response for updates */
-    string response;
-    int importance;
-    tie(response, importance) = mymap.get_updates(turn, 32 * 7);
-    
-    return new Answer(finale, normal_str(response), importance);
+    /* random walk */
+    return Direction(rand() % 4 + 1);
 }
