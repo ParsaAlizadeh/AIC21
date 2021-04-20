@@ -9,8 +9,9 @@
 
 class AI {
 private:
-    int randid, live_turn;
-    bool is_explorer;
+    int randid, live_turn, cur_turn;
+    bool is_explorer, is_waiting;
+    bool is_danger; // I'm not in danger. I am the danger!
     MyMap mymap;
     std::pair<int, int> target;
     std::function<bool(const MyMap&, const Search&)> target_rule;
@@ -22,6 +23,7 @@ public:
     bool find_resource(Game *game, const Search& from_me, const Search& from_base);
     bool find_dark(Game *game, const Search& from_me, const Search& from_base);
 
+    static int count_sarbaz(const Cell* cell, AntTeam team = ALLY);
     static std::string binary_str(std::string normal);
     static std::string normal_str(std::string binary);
 };

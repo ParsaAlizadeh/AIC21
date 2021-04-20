@@ -2,11 +2,12 @@
 #include <bits/stdc++.h>
 #include "Models/enums.h"
 using namespace std;
+using namespace chrono;
 
-AI::AI() {
-    srand(time(nullptr));
+AI::AI() : live_turn(0), is_waiting(true), is_danger(false) {
+    auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    srand(rseed);
     randid = rand() % 128;
-    live_turn = 0;
     freopen(("/tmp/ai/log_" + to_string(randid)).c_str(), "w", stdout);
 }
 
@@ -31,12 +32,21 @@ string AI::binary_str(string normal) {
     return result;
 }
 
+inline int AI::count_sarbaz(const Cell* cell, AntTeam team) {
+    const auto& ants = cell->getPresentAnts();
+    return count_if(begin(ants), end(ants), 
+        [&] (const Ant* ant) {
+            return ant->getTeam() == team && ant->getType() == SARBAZ;
+        }
+    );
+}
+
 Answer *AI::turn(Game *game) {
     /* initialize turn and map */
     live_turn++;
-    int turn = 1;
+    cur_turn = 1;
     for (const Chat* chat : game->getChatBox()->getAllChats()) {
-        turn = max(turn, chat->getTurn() + 1);
+        cur_turn = max(cur_turn, chat->getTurn() + 1);
     }
 
     /* constants */
@@ -47,14 +57,20 @@ Answer *AI::turn(Game *game) {
     const int W = game->getMapWidth(), H = game->getMapHeight();
 
     /* pre-phase init */
-    mymap.init(W, H, turn);
+    mymap.init(W, H, cur_turn);
     if (live_turn == 1) {
         is_explorer = (rand() % 5 == 0) && (me->getType() == SARBAZ);
     }
+    // is_waiting &= (me->getType() == SARBAZ) && (!is_explorer);
+    // if (is_waiting) {
+    //     is_waiting &= count_sarbaz(me->getLocationCell()) == 1;
+    //     if (is_waiting)
+    //         return new Answer(CENTER);
+    // }
 
     /* read messages */
     for (const Chat* chat : game->getChatBox()->getAllChats())
-    if (live_turn == 1 || chat->getTurn() == turn - 1) {
+    if (live_turn == 1 || chat->getTurn() == cur_turn - 1) {
         string binary = binary_str(chat->getText());
         for (int i = 0; i + 14 <= binary.size(); i += 14) {
             MyCell cell = MyCell::decode(binary.substr(i, 14), chat->getTurn());
@@ -71,7 +87,7 @@ Answer *AI::turn(Game *game) {
         int x2 = attack->getDefenderColumn();
         int y2 = attack->getDefenderRow();
         if (mymap.distance(x1, y1, x2, y2) > game->getAttackDistance()) {
-            mymap.update(x1, y1, turn, C_BASE, true);
+            mymap.update(x1, y1, cur_turn, C_BASE, true);
         }
     }
 
@@ -86,7 +102,7 @@ Answer *AI::turn(Game *game) {
             state = C_WALL;
         if (cell->getResource()->getType() != NONE)
             state = C_RES;
-        mymap.update(cell->getX(), cell->getY(), turn, state, true);
+        mymap.update(cell->getX(), cell->getY(), cur_turn, state, true);
     }
 
     /* log mymap */
@@ -99,7 +115,7 @@ Answer *AI::turn(Game *game) {
         cout << (int)cell.get_state() << " " << cell.is_self() << " \n"[j==H-1];
     }
 
-    const Search from_me(mymap, me_x, me_y, false);
+    const Search from_me(mymap, me_x, me_y, is_danger);
     const Search from_base(mymap, base_x, base_y, false);
 
     /* reset target, based on search */
@@ -112,7 +128,7 @@ Answer *AI::turn(Game *game) {
     /* make a response for updates */
     string response;
     int importance;
-    tie(response, importance) = mymap.get_updates(turn, 32 * 7);
+    tie(response, importance) = mymap.get_updates(cur_turn, 32 * 7);
     
     return new Answer(finale, normal_str(response), importance);
 }
@@ -129,15 +145,24 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
         return from_me.to(base_x, base_y);
     }
 
-    /* sarbaz attack to the base */
-    if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
-        const Search attack(mymap, me_x, me_y, true);
-        return attack.to(mymap.get_enemyX(), mymap.get_enemyY());
-    }
-
     /* just to the latest target */
     if (target_rule) {
         return from_me.to(target.first, target.second);
+    }
+
+    /* sarbaz attack to the base */
+    if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
+        int enemyX = mymap.get_enemyX(), enemyY = mymap.get_enemyY();
+        if (is_explorer || count_sarbaz(me->getLocationCell()) >= 5) {
+            is_danger = true;
+            target = {enemyX, enemyY};
+            target_rule = [] (const MyMap&, const Search&) -> bool {
+                return false;
+            };
+
+            const Search attack(mymap, me_x, me_y, true);
+            return attack.to(enemyX, enemyY);
+        }
     }
 
     /* non-explorers find the nearest resource */
@@ -218,7 +243,8 @@ bool AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
         return false;
     target_rule = [=] (const MyMap& mymap, const Search& from_me) {
         return (
-            from_me.to(target.first, target.second) == CENTER
+            from_me.to(target.first, target.second) == CENTER ||
+            mymap.at(target.first, target.second).get_state() != C_UNKNOWN
         );
     };
     return true;
