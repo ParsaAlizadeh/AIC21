@@ -4,7 +4,12 @@
 using namespace std;
 using namespace chrono;
 
-AI::AI() : live_turn(0), is_waiting(true), is_danger(false) {
+AI::AI() : 
+    live_turn(0),
+    is_waiting(true), 
+    is_danger(false), 
+    cooldown(0) 
+{
     auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     srand(rseed);
     randid = rand() % 128;
@@ -58,15 +63,16 @@ Answer *AI::turn(Game *game) {
 
     /* pre-phase init */
     mymap.init(W, H, cur_turn);
-    if (live_turn == 1) {
-        is_explorer = (rand() % 5 == 0) && (me->getType() == SARBAZ);
+    if (live_turn == 1 && me->getType() == SARBAZ) {
+        srand(1069); // It's a simple spell but quite unbreakable
     }
-    // is_waiting &= (me->getType() == SARBAZ) && (!is_explorer);
-    // if (is_waiting) {
-    //     is_waiting &= count_sarbaz(me->getLocationCell()) == 1;
-    //     if (is_waiting)
-    //         return new Answer(CENTER);
-    // }
+    is_waiting &= me->getType() == SARBAZ;
+    if (is_waiting) {
+        is_waiting &= count_sarbaz(me->getLocationCell()) <= 1;
+        is_waiting &= live_turn <= 3;
+        if (is_waiting)
+            return new Answer(CENTER);
+    }
 
     /* read messages */
     for (const Chat* chat : game->getChatBox()->getAllChats())
@@ -118,6 +124,20 @@ Answer *AI::turn(Game *game) {
     const Search from_me(mymap, me_x, me_y, is_danger);
     const Search from_base(mymap, base_x, base_y, false);
 
+    /* determine cooldown */
+    if (me->getType() == SARBAZ) {
+        for (int dx = -viewdist; dx <= viewdist; dx++)
+        for (int dy = -viewdist; dy <= viewdist; dy++) {
+            const Cell* cell = me->getNeighborCell(dx, dy);
+            if (!cell)
+                continue;
+            for (const Ant* ant : cell->getPresentAnts())
+            if (ant->getTeam() == ENEMY) {
+                cooldown = max(cooldown, 5);
+            }
+        }
+    }
+
     /* reset target, based on search */
     if (target_rule && target_rule(mymap, from_me)) {
         target_rule = nullptr;
@@ -139,7 +159,7 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
     const int me_x = me->getX(), me_y = me->getY();
     const int base_x = game->getBaseX(), base_y = game->getBaseY();
     const int viewdist = game->getViewDistance();
-    
+
     /* kargar put resource back */
     if (me->getCurrentResource()->getValue() > 0) {
         return from_me.to(base_x, base_y);
@@ -150,10 +170,16 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
         return from_me.to(target.first, target.second);
     }
 
+    /* no move until cooldown ends */
+    if (cooldown) {
+        cooldown--;
+        return CENTER;
+    }
+
     /* sarbaz attack to the base */
     if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
         int enemyX = mymap.get_enemyX(), enemyY = mymap.get_enemyY();
-        if (is_explorer || count_sarbaz(me->getLocationCell()) >= 5) {
+        if (count_sarbaz(me->getLocationCell()) >= 3) {
             is_danger = true;
             target = {enemyX, enemyY};
             target_rule = [] (const MyMap&, const Search&) -> bool {
@@ -165,10 +191,19 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
         }
     }
 
-    /* non-explorers find the nearest resource */
-    if (!is_explorer && find_resource(game, from_me, from_base)) {
-        return from_me.to(target.first, target.second);
+    /* find resource according to type */
+    {
+        int min_dist = me->getType() == KARGAR ? 0 : mymap.distance(me_x, me_y, base_x, base_y);
+        if (find_resource(game, from_me, from_base, min_dist)) {
+            if (me->getType() == SARBAZ)
+                cooldown = max(cooldown, 5);
+            return from_me.to(target.first, target.second);
+        }
     }
+
+    /* explore by special function */
+    if (me->getType() == SARBAZ)
+        return explore(game, from_me, from_base);
 
     /* see dark areas of mymap */ 
     if (find_dark(game, from_me, from_base)) {
@@ -179,7 +214,7 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
     return Direction(rand() % 4 + 1);
 }
 
-bool AI::find_resource(Game *game, const Search& from_me, const Search& from_base) {
+bool AI::find_resource(Game *game, const Search& from_me, const Search& from_base, int min_dist) {
     const Ant* me = game->getAnt();
     const int W = game->getMapWidth(), H = game->getMapHeight();
     const int me_x = me->getX(), me_y = me->getY();
@@ -196,6 +231,8 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
         const MyCell& cell = mymap.at(x, y);
         if (cell.get_state() != C_RES)
             continue;
+        if (mymap.distance(x, y, base_x, base_y) <= min_dist)
+            continue;
         int dist = from_me.get_dist(x, y) + from_base.get_dist(x, y);
         if (dist < best_dist) {
             best_dist = dist;
@@ -209,10 +246,12 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
     }
     if (best_dist == INT_MAX)
         return false;
+    AntType mytype = me->getType();
     target_rule = [=] (const MyMap& mymap, const Search& from_me) {
         return (
             from_me.to(target.first, target.second) == CENTER ||
-            mymap.at(target.first, target.second).get_state() != C_RES
+            mymap.at(target.first, target.second).get_state() != C_RES ||
+            mytype == KARGAR
         );
     };
     return true;
@@ -248,4 +287,26 @@ bool AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
         );
     };
     return true;
+}
+
+Direction AI::explore(Game *game, const Search& from_me, const Search& from_base) {
+    const Ant* me = game->getAnt();
+    const int W = game->getMapWidth(), H = game->getMapHeight();
+    const int me_x = me->getX(), me_y = me->getY();
+    const int base_x = game->getBaseX(), base_y = game->getBaseY();
+    const int viewdist = game->getViewDistance();
+
+    vector<int> cnt(5, 0);
+    for (int x = 0; x < W; x++)
+    for (int y = 0; y < H; y++) {
+        const MyCell& cell = mymap.at(x, y);
+        if (cell.get_state() != C_UNKNOWN)
+            continue;
+        if (from_me.to(x, y) == CENTER)
+            continue;
+        int dir = (int) from_me.to(x, y);
+        cnt[dir]++;
+    }
+    int dir = max_element(begin(cnt), end(cnt)) - begin(cnt);
+    return Direction(dir);
 }
