@@ -220,7 +220,8 @@ bool AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
         return false;
     target_rule = [=] (const MyMap& mymap, const Search& from_me) {
         return (
-            from_me.to(target.first, target.second) == CENTER
+            from_me.to(target.first, target.second) == CENTER ||
+            mymap.at(target.first, target.second).get_state() != C_UNKNOWN
         );
     };
     return true;
