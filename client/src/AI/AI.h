@@ -11,6 +11,7 @@ class AI {
 private:
     int randid, live_turn, cur_turn;
     bool is_explorer;
+    bool is_danger; // I'm not in danger, I am the danger!
     MyMap mymap;
     std::pair<int, int> target;
     std::function<bool(const MyMap&, const Search&)> target_rule;
@@ -21,6 +22,7 @@ public:
     Direction decide(Game *game, const Search& from_me, const Search& from_base);
     bool find_resource(Game *game, const Search& from_me, const Search& from_base);
     bool find_dark(Game *game, const Search& from_me, const Search& from_base);
+    bool attack_base(Game *game, const Search& from_me, const Search& from_base, const Search& attack);
 
     static std::string binary_str(std::string normal);
     static std::string normal_str(std::string binary);

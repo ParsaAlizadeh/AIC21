@@ -11,6 +11,7 @@ Search::Search(const MyMap& mymap, int cx, int cy, bool danger) :
     dist(W, vector<int>(H, -1)),
     nxt(W, vector<Direction>(H, CENTER))
 {
+    danger |= mymap.is_danger(cx, cy);
     int _dir[] = {1, 2, 3, 4};
     dist[cx][cy] = 0;
     queue<int> q;

@@ -4,7 +4,11 @@
 using namespace std;
 using namespace chrono;
 
-AI::AI() {
+AI::AI() :
+    live_turn(0),
+    is_explorer(false),
+    is_danger(false)
+{
     auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     srand(rseed);
     randid = rand() % 128;
@@ -101,7 +105,7 @@ Answer *AI::turn(Game *game) {
         cout << (int)cell.get_state() << " " << cell.is_self() << " \n"[j==H-1];
     }
 
-    const Search from_me(mymap, me_x, me_y, false);
+    const Search from_me(mymap, me_x, me_y, is_danger);
     const Search from_base(mymap, base_x, base_y, false);
 
     /* reset target, based on search */
@@ -131,15 +135,17 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
         return from_me.to(base_x, base_y);
     }
 
-    /* sarbaz attack to the base */
-    if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
-        const Search attack(mymap, me_x, me_y, true);
-        return attack.to(mymap.get_enemyX(), mymap.get_enemyY());
-    }
-
     /* just to the latest target */
     if (target_rule) {
         return from_me.to(target.first, target.second);
+    }
+
+    /* sarbaz attack to the base */
+    if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
+        const Search attack(mymap, me_x, me_y, true);
+        if (attack_base(game, from_me, from_base, attack)) {
+            return attack.to(target.first, target.second);
+        }
     }
 
     /* non-explorers find the nearest resource */
@@ -168,7 +174,7 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
 
     for (int x = 0; x < W; x++)
     for (int y = 0; y < H; y++) {
-        if (from_me.get_dist(x, y) < 0)
+        if (from_me.get_dist(x, y) < 0 || from_base.get_dist(x, y) < 0)
             continue;
         const MyCell& cell = mymap.at(x, y);
         if (cell.get_state() != C_RES)
@@ -226,5 +232,40 @@ bool AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
             mymap.at(target.first, target.second).get_state() != C_UNKNOWN
         );
     };
+    return true;
+}
+
+bool AI::attack_base(Game *game, const Search& from_me, const Search& from_base, const Search& attack) {
+    const Ant* me = game->getAnt();
+    const int W = game->getMapWidth(), H = game->getMapHeight();
+    const int me_x = me->getX(), me_y = me->getY();
+    const int base_x = game->getBaseX(), base_y = game->getBaseY();
+    const int attackdist = game->getAttackDistance();
+
+    int enemyx = mymap.get_enemyX(), enemyy = mymap.get_enemyY();
+
+    if (me->getType() != SARBAZ || enemyx < 0)
+        return false;
+
+    int best = INT_MAX;
+    for (int dx = -attackdist; dx <= attackdist; dx++)
+    for (int dy = -attackdist; dy <= attackdist; dy++)
+    if (abs(dx) + abs(dy) <= attackdist) {
+        int x = mymap.addmod(enemyx, dx, W);
+        int y = mymap.addmod(enemyy, dy, H);
+        if (attack.get_dist(x, y) < 0 || attack.get_dist(x, y) >= best)
+            continue;
+        best = attack.get_dist(x, y);
+        target = {x, y};
+    }
+
+    if (best == INT_MAX)
+        return false;
+    
+    is_danger = true;
+    target_rule = [=] (const MyMap& mymap, const Search& from_me) {
+        return false;
+    };
+
     return true;
 }
