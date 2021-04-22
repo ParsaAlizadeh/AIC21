@@ -9,7 +9,7 @@
 
 class AI {
 private:
-    int randid, live_turn;
+    int randid, live_turn, cur_turn;
     bool is_explorer;
     MyMap mymap;
     std::pair<int, int> target;

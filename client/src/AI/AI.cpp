@@ -36,9 +36,9 @@ string AI::binary_str(string normal) {
 Answer *AI::turn(Game *game) {
     /* initialize turn and map */
     live_turn++;
-    int turn = 1;
+    cur_turn = 1;
     for (const Chat* chat : game->getChatBox()->getAllChats()) {
-        turn = max(turn, chat->getTurn() + 1);
+        cur_turn = max(cur_turn, chat->getTurn() + 1);
     }
 
     /* constants */
@@ -49,14 +49,14 @@ Answer *AI::turn(Game *game) {
     const int W = game->getMapWidth(), H = game->getMapHeight();
 
     /* pre-phase init */
-    mymap.init(W, H, turn);
+    mymap.init(W, H, cur_turn);
     if (live_turn == 1) {
         is_explorer = (rand() % 5 == 0) && (me->getType() == SARBAZ);
     }
 
     /* read messages */
     for (const Chat* chat : game->getChatBox()->getAllChats())
-    if (live_turn == 1 || chat->getTurn() == turn - 1) {
+    if (live_turn == 1 || chat->getTurn() == cur_turn - 1) {
         string binary = binary_str(chat->getText());
         for (int i = 0; i + 14 <= binary.size(); i += 14) {
             MyCell cell = MyCell::decode(binary.substr(i, 14), chat->getTurn());
@@ -73,7 +73,7 @@ Answer *AI::turn(Game *game) {
         int x2 = attack->getDefenderColumn();
         int y2 = attack->getDefenderRow();
         if (mymap.distance(x1, y1, x2, y2) > game->getAttackDistance()) {
-            mymap.update(x1, y1, turn, C_BASE, true);
+            mymap.update(x1, y1, cur_turn, C_BASE, true);
         }
     }
 
@@ -88,7 +88,7 @@ Answer *AI::turn(Game *game) {
             state = C_WALL;
         if (cell->getResource()->getType() != NONE)
             state = C_RES;
-        mymap.update(cell->getX(), cell->getY(), turn, state, true);
+        mymap.update(cell->getX(), cell->getY(), cur_turn, state, true);
     }
 
     /* log mymap */
@@ -114,7 +114,7 @@ Answer *AI::turn(Game *game) {
     /* make a response for updates */
     string response;
     int importance;
-    tie(response, importance) = mymap.get_updates(turn, 32 * 7);
+    tie(response, importance) = mymap.get_updates(cur_turn, 32 * 7);
     
     return new Answer(finale, normal_str(response), importance);
 }
