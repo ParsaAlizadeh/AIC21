@@ -174,9 +174,7 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
     }
 
     /* see dark areas of mymap */ 
-    if (find_dark(game, from_me, from_base)) {
-        return from_me.to(target.first, target.second);
-    }
+    return find_dark(game, from_me, from_base);
 
     /* random walk */
     return Direction(rand() % 4 + 1);
@@ -223,36 +221,24 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
     return true;
 }
 
-bool AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
+Direction AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
     const Ant* me = game->getAnt();
     const int W = game->getMapWidth(), H = game->getMapHeight();
     const int me_x = me->getX(), me_y = me->getY();
     const int base_x = game->getBaseX(), base_y = game->getBaseY();
     const int viewdist = game->getViewDistance();
 
-    int best_dist = INT_MAX;
-    for (int i = 0; i < W; i++)
-    for (int j = 0; j < H; j++) {
-        if (from_me.get_dist(i, j) < 0)
-            continue;
-        const MyCell& cell = mymap.at(i, j);
+    vector<int> cnt(5, 0);
+    for (int x = 0; x < W; x++)
+    for (int y = 0; y < H; y++)
+    if (from_me.to(x, y) != CENTER) {
+        const MyCell& cell = mymap.at(x, y);
         if (cell.get_state() != C_UNKNOWN)
             continue;
-        int dist = max(from_me.get_dist(i, j), from_base.get_dist(i, j));
-        if (dist <= best_dist) {
-            best_dist = dist;
-            target = {i, j};
-        }
+        cnt[(int) from_me.to(x, y)]++;
     }
-    if (best_dist == INT_MAX)
-        return false;
-    target_rule = [=] (const MyMap& mymap, const Search& from_me) {
-        return (
-            from_me.to(target.first, target.second) == CENTER ||
-            mymap.at(target.first, target.second).get_state() != C_UNKNOWN
-        );
-    };
-    return true;
+    int dir = max_element(begin(cnt), end(cnt)) - begin(cnt);
+    return Direction(dir);
 }
 
 bool AI::attack_base(Game *game, const Search& from_me, const Search& from_base, const Search& attack) {

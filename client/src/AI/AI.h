@@ -22,7 +22,7 @@ public:
 
     Direction decide(Game *game, const Search& from_me, const Search& from_base);
     bool find_resource(Game *game, const Search& from_me, const Search& from_base);
-    bool find_dark(Game *game, const Search& from_me, const Search& from_base);
+    Direction find_dark(Game *game, const Search& from_me, const Search& from_base);
     bool attack_base(Game *game, const Search& from_me, const Search& from_base, const Search& attack);
 
     static std::string binary_str(std::string normal);
