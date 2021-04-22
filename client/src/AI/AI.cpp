@@ -186,10 +186,12 @@ bool AI::find_resource(Game *game, const Search& from_me, const Search& from_bas
     }
     if (best_dist == INT_MAX)
         return false;
+    bool is_karger = me->getType() == KARGAR;
     target_rule = [=] (const MyMap& mymap, const Search& from_me) {
         return (
             from_me.to(target.first, target.second) == CENTER ||
-            mymap.at(target.first, target.second).get_state() != C_RES
+            mymap.at(target.first, target.second).get_state() != C_RES ||
+            is_karger
         );
     };
     return true;
