@@ -7,7 +7,8 @@ using namespace chrono;
 AI::AI() :
     live_turn(0),
     is_explorer(false),
-    is_danger(false)
+    is_danger(false),
+    is_waiting(true)
 {
     auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     srand(rseed);
@@ -37,6 +38,13 @@ string AI::binary_str(string normal) {
     return result;
 }
 
+int AI::count_sarbaz(const Cell* cell) {
+    const auto& ants = cell->getPresentAnts();
+    return count_if(begin(ants), end(ants), [] (const Ant* ant) {
+        return ant->getTeam() == ALLY && ant->getType() == SARBAZ;
+    });
+}
+
 Answer *AI::turn(Game *game) {
     /* initialize turn and map */
     live_turn++;
@@ -57,6 +65,15 @@ Answer *AI::turn(Game *game) {
     if (live_turn == 1) {
         is_explorer = (rand() % 5 == 0) && (me->getType() == SARBAZ);
     }
+    is_waiting &= (
+        me->getType() == SARBAZ &&
+        !is_explorer &&
+        live_turn <= 3 &&
+        count_sarbaz(me->getLocationCell()) <= 1
+    );
+    if (is_waiting)
+        return new Answer(CENTER);
+
 
     /* read messages */
     for (const Chat* chat : game->getChatBox()->getAllChats())
@@ -249,17 +266,23 @@ bool AI::attack_base(Game *game, const Search& from_me, const Search& from_base,
 
     if (me->getType() != SARBAZ || enemyx < 0)
         return false;
+    if (!is_explorer && count_sarbaz(me->getLocationCell()) < 3)
+        return false;
 
-    int best = INT_MAX;
+    int best = INT_MAX, base_dist = 0;
     for (int dx = -attackdist; dx <= attackdist; dx++)
     for (int dy = -attackdist; dy <= attackdist; dy++)
     if (abs(dx) + abs(dy) <= attackdist) {
         int x = mymap.addmod(enemyx, dx, W);
         int y = mymap.addmod(enemyy, dy, H);
-        if (attack.get_dist(x, y) < 0 || attack.get_dist(x, y) >= best)
+        int d1 = attack.get_dist(x, y), d2 = abs(dx) + abs(dy);
+        if (d1 < 0 || d1 + d2 > best)
             continue;
-        best = attack.get_dist(x, y);
-        target = {x, y};
+        if ((d1 + d2 < best) || (d1 + d2 <= best && d2 < base_dist)) {
+            best = d1 + d2;
+            base_dist = d2;
+            target = {x, y};
+        }
     }
 
     if (best == INT_MAX)
