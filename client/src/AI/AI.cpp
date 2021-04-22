@@ -2,9 +2,11 @@
 #include <bits/stdc++.h>
 #include "Models/enums.h"
 using namespace std;
+using namespace chrono;
 
 AI::AI() {
-    srand(time(nullptr));
+    auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    srand(rseed);
     randid = rand() % 128;
     live_turn = 0;
     freopen(("/tmp/ai/log_" + to_string(randid)).c_str(), "w", stdout);
