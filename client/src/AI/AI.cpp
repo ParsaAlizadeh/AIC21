@@ -132,7 +132,10 @@ Direction AI::decide(Game *game, const Search& from_me, const Search& from_base)
     
     /* kargar put resource back */
     if (me->getCurrentResource()->getValue() > 0) {
-        return from_me.to(base_x, base_y);
+        if (from_me.to(base_x, base_y) != CENTER)
+            return from_me.to(base_x, base_y);
+        const Search with_danger(mymap, me_x, me_y, true);
+        return with_danger.to(base_x, base_y);
     }
 
     /* just to the latest target */
