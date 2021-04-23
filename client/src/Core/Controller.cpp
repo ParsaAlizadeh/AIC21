@@ -127,7 +127,7 @@ void Controller::turn_event(AI *client, Game *tmp_game, EventQueue *m_event_queu
         int passed = getTime() - start;
         Logger::Get(LogLevel_TRACE) << "Recieved client answer in " << passed << "ms." << endl;
 
-        if (passed <= 500) {
+        if (passed <= 1000) {
             m_event_queue->push(CreateMovementMessage(getDirectionNum(answer->getDirection())));
             if (!answer->getMessage().empty())
                 m_event_queue->push(CreateChatBoxMessage(answer->getMessage(), answer->getMessageValue()));
