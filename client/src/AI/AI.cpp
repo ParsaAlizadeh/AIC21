@@ -8,7 +8,8 @@ AI::AI() :
     live_turn(0),
     is_explorer(false),
     is_danger(false),
-    is_waiting(true)
+    is_waiting(true),
+    reason(T_NONE)
 {
     auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     srand(rseed);
@@ -43,6 +44,16 @@ int AI::count_sarbaz(const Cell* cell) {
     return count_if(begin(ants), end(ants), [] (const Ant* ant) {
         return ant->getTeam() == ALLY && ant->getType() == SARBAZ;
     });
+}
+
+inline bool AI::match_resource(ResourceType restype, CellState state) {
+    if (restype == NONE)
+        return state == C_GRASS || state == C_BREAD;
+    if (restype == GRASS)
+        return state == C_GRASS;
+    if (restype == BREAD)
+        return state == C_BREAD;
+    return false;   // never happens
 }
 
 Answer *AI::turn(Game *game) {
@@ -125,10 +136,79 @@ Answer *AI::turn(Game *game) {
     from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger));
     from_base = unique_ptr<Search>(new Search(mymap, world->base_x, world->base_y, false));
 
+    /* decide where */
+    if (reason != T_NONE && from_me->to(target.x, target.y) == CENTER) {
+        reason = T_NONE;
+    }
+    decide();
+    Direction finale = reason == T_NONE ? CENTER : from_me->to(target.x, target.y);
+
     /* make a response for updates */
     string response;
     int importance;
     tie(response, importance) = mymap.get_updates(cur_turn, 32 * 7);
     
-    return new Answer(UP, normal_str(response), importance);
+    return new Answer(finale, normal_str(response), importance);
+}
+
+void AI::decide() {
+    if (world->myresource->getValue() > 5) {
+        target = {world->base_x, world->base_y};
+        reason = T_PUTBACK;
+        return;
+    }
+
+    if (world->mytype == KARGAR) {
+        manage_resource();
+        if (reason == T_RESOURCE)
+            return;
+    }
+}
+
+bool AI::manage_resource() {
+    if (reason == T_RESOURCE) {
+        CellState state = mymap.at(target.x, target.y).get_state();
+        if (!match_resource(world->myresource->getType(), state)) {
+            reason = T_NONE;
+        }
+    }
+    Point new_res = find_resource();
+    if (new_res.x < 0)
+        return false;
+    if (
+        reason == T_RESOURCE && 
+        from_me->get_dist(new_res.x, new_res.y) >= from_me->get_dist(target.x, target.y)
+    ) {
+        return false;
+    }
+    target = new_res;
+    reason = T_RESOURCE;
+    return true;
+}
+
+Point AI::find_resource() {
+    vector<Point> options;
+    ResourceType restype = world->myresource->getType();
+    for (int x = 0; x < world->W; x++)
+    for (int y = 0; y < world->H; y++) {
+        const MyCell& mycell = mymap.at(x, y);
+        if (!match_resource(restype, mycell.get_state()))
+            continue;
+        if (from_me->to(x, y) == CENTER || from_base->to(x, y) == CENTER)
+            continue;
+        options.push_back({x, y});
+    }
+    if (options.empty())
+        return {-1, -1};
+    random_shuffle(begin(options), end(options));
+    stable_sort(begin(options), end(options), 
+        [&] (const Point& a, const Point& b) {
+            int a1 = from_me->get_dist(a.x, a.y);
+            int a2 = from_base->get_dist(a.x, a.y);
+            int b1 = from_me->get_dist(b.x, b.y);
+            int b2 = from_base->get_dist(b.x, b.y);
+            return (a1 + a2 != b1 + b2) ? (a1 + a2 < b1 + b2) : (a1 < b1);
+        }
+    );
+    return options[0];
 }

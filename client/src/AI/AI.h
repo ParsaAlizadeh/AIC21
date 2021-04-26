@@ -15,8 +15,19 @@ struct World {
     const AntType mytype = me->getType();
     const int base_x = game->getBaseX(), base_y = game->getBaseY();
     const int viewdist = game->getViewDistance();
+    const Resource* myresource = me->getCurrentResource();
 
     World(const Game* game) : game(game) {}
+};
+
+struct Point {
+    int x, y;
+};
+
+enum TargetReason {
+    T_PUTBACK,
+    T_RESOURCE,
+    T_NONE
 };
 
 class AI {
@@ -30,13 +41,20 @@ private:
     unique_ptr<Search> from_me, from_base;
 
     MyMap mymap;
+
+    Point target;
+    TargetReason reason;
 public:
     AI();
     Answer* turn(Game *game);
+    void decide();
+    bool manage_resource();
+    Point find_resource();
 
     static std::string binary_str(std::string normal);
     static std::string normal_str(std::string binary);
     static int count_sarbaz(const Cell* cell);
+    static bool match_resource(ResourceType restype, CellState state);
 };
 
 #endif // AIC21_CLIENT_CPP_AI_H
