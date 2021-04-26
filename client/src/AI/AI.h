@@ -49,7 +49,9 @@ public:
     Answer* turn(Game *game);
     void decide();
     bool manage_resource();
+
     Point find_resource();
+    Direction find_dark();
 
     static std::string binary_str(std::string normal);
     static std::string normal_str(std::string binary);

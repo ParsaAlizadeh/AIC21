@@ -140,8 +140,16 @@ Answer *AI::turn(Game *game) {
     if (reason != T_NONE && from_me->to(target.x, target.y) == CENTER) {
         reason = T_NONE;
     }
+
     decide();
-    Direction finale = reason == T_NONE ? CENTER : from_me->to(target.x, target.y);
+    
+    Direction finale = CENTER;
+    if (reason != T_NONE) {
+        finale = from_me->to(target.x, target.y);
+    }
+    else {
+        finale = find_dark();
+    }
 
     /* make a response for updates */
     string response;
@@ -152,7 +160,7 @@ Answer *AI::turn(Game *game) {
 }
 
 void AI::decide() {
-    if (world->myresource->getValue() > 5) {
+    if (world->myresource->getValue() >= 5) {
         target = {world->base_x, world->base_y};
         reason = T_PUTBACK;
         return;
@@ -211,4 +219,19 @@ Point AI::find_resource() {
         }
     );
     return options[0];
+}
+
+Direction AI::find_dark() {
+    vector<int> cnt(5, 0);
+    for (int x = 0; x < world->W; x++)
+    for (int y = 0; y < world->H; y++) {
+        const MyCell& cell = mymap.at(x, y);
+        if (cell.get_state() != C_UNKNOWN)
+            continue;
+        if (from_me->to(x, y) == CENTER)
+            continue;
+        cnt[(int) from_me->to(x, y)]++;
+    }
+    int dir = max_element(begin(cnt), end(cnt)) - begin(cnt);
+    return Direction(dir);
 }
