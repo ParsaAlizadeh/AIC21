@@ -54,7 +54,7 @@ Answer *AI::turn(Game *game) {
     }
 
     /* constants */
-    world = make_unique<World>(game);
+    world = unique_ptr<World>(new World(game));
 
     /* pre-phase init */
     mymap.init(world->W, world->H, cur_turn);
@@ -75,8 +75,8 @@ Answer *AI::turn(Game *game) {
     for (const Chat* chat : game->getChatBox()->getAllChats())
     if (live_turn == 1 || chat->getTurn() == cur_turn - 1) {
         string binary = binary_str(chat->getText());
-        for (int i = 0; i + 14 <= binary.size(); i += 14) {
-            MyCell cell = MyCell::decode(binary.substr(i, 14), chat->getTurn());
+        for (int i = 0; i + MyCell::size <= binary.size(); i += MyCell::size) {
+            MyCell cell = MyCell::decode(binary.substr(i, MyCell::size), chat->getTurn());
             mymap.update(cell);
         }
     }
@@ -103,8 +103,11 @@ Answer *AI::turn(Game *game) {
         CellState state = C_EMPTY;
         if (cell->getType() == WALL)
             state = C_WALL;
-        if (cell->getResource()->getType() != NONE)
-            state = C_RES;
+        auto res_type = cell->getResource()->getType();
+        if (res_type == BREAD)
+            state = C_BREAD;
+        if (res_type == GRASS)
+            state = C_GRASS;
         mymap.update(cell->getX(), cell->getY(), cur_turn, state, true);
     }
 
@@ -119,8 +122,8 @@ Answer *AI::turn(Game *game) {
     }
 
     /* pre search map */
-    from_me = make_unique<Search>(mymap, world->me_x, world->me_y, is_danger);
-    from_base = make_unique<Search>(mymap, world->base_x, world->base_y, false);
+    from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger));
+    from_base = unique_ptr<Search>(new Search(mymap, world->base_x, world->base_y, false));
 
     /* make a response for updates */
     string response;
