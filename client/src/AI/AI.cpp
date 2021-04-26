@@ -54,22 +54,18 @@ Answer *AI::turn(Game *game) {
     }
 
     /* constants */
-    const Ant* me = game->getAnt();
-    const int me_x = me->getX(), me_y = me->getY();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
-    const int viewdist = game->getViewDistance();
-    const int W = game->getMapWidth(), H = game->getMapHeight();
+    world = make_unique<World>(game);
 
     /* pre-phase init */
-    mymap.init(W, H, cur_turn);
+    mymap.init(world->W, world->H, cur_turn);
     if (live_turn == 1) {
-        is_explorer = (rand() % 5 == 0) && (me->getType() == SARBAZ);
+        is_explorer = (rand() % 5 == 0) && (world->mytype == SARBAZ);
     }
     is_waiting &= (
-        me->getType() == SARBAZ &&
+        world->mytype == SARBAZ &&
         !is_explorer &&
         live_turn <= 3 &&
-        count_sarbaz(me->getLocationCell()) <= 1
+        count_sarbaz(world->me->getLocationCell()) <= 1
     );
     if (is_waiting)
         return new Answer(CENTER);
@@ -99,9 +95,9 @@ Answer *AI::turn(Game *game) {
     }
 
     /* update visited cells */
-    for (int dx = -viewdist; dx <= viewdist; dx++)
-    for (int dy = -viewdist; dy <= viewdist; dy++) {
-        const Cell* cell = me->getNeighborCell(dx, dy);
+    for (int dx = -world->viewdist; dx <= world->viewdist; dx++)
+    for (int dy = -world->viewdist; dy <= world->viewdist; dy++) {
+        const Cell* cell = world->me->getNeighborCell(dx, dy);
         if (!cell)
             continue;
         CellState state = C_EMPTY;
@@ -114,170 +110,22 @@ Answer *AI::turn(Game *game) {
 
     /* log mymap */
     if (live_turn == 1)
-        cout << W << " " << H << endl;
-    cout << me_x << " " << me_y << endl;
-    for (int i = 0; i < W; i++)
-    for (int j = 0; j < H; j++) {
+        cout << world->W << " " << world->H << endl;
+    cout << world->me_x << " " << world->me_y << endl;
+    for (int i = 0; i < world->W; i++)
+    for (int j = 0; j < world->H; j++) {
         const MyCell& cell = mymap.at(i, j);
-        cout << (int)cell.get_state() << " " << cell.is_self() << " \n"[j==H-1];
+        cout << (int)cell.get_state() << " " << cell.is_self() << " \n"[j==world->H-1];
     }
 
-    const Search from_me(mymap, me_x, me_y, is_danger);
-    const Search from_base(mymap, base_x, base_y, false);
-
-    /* reset target, based on search */
-    if (target_rule && target_rule(mymap, from_me)) {
-        target_rule = nullptr;
-    }
-
-    Direction finale = decide(game, from_me, from_base);
+    /* pre search map */
+    from_me = make_unique<Search>(mymap, world->me_x, world->me_y, is_danger);
+    from_base = make_unique<Search>(mymap, world->base_x, world->base_y, false);
 
     /* make a response for updates */
     string response;
     int importance;
     tie(response, importance) = mymap.get_updates(cur_turn, 32 * 7);
     
-    return new Answer(finale, normal_str(response), importance);
-}
-
-Direction AI::decide(Game *game, const Search& from_me, const Search& from_base) {
-    const Ant* me = game->getAnt();
-    const int W = game->getMapWidth(), H = game->getMapHeight();
-    const int me_x = me->getX(), me_y = me->getY();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
-    const int viewdist = game->getViewDistance();
-    
-    /* kargar put resource back */
-    if (me->getCurrentResource()->getValue() > 0) {
-        if (from_me.to(base_x, base_y) != CENTER)
-            return from_me.to(base_x, base_y);
-        const Search with_danger(mymap, me_x, me_y, true);
-        return with_danger.to(base_x, base_y);
-    }
-
-    /* just to the latest target */
-    if (target_rule) {
-        return from_me.to(target.first, target.second);
-    }
-
-    /* sarbaz attack to the base */
-    if (me->getType() == SARBAZ && mymap.get_enemyX() >= 0) {
-        const Search attack(mymap, me_x, me_y, true);
-        if (attack_base(game, from_me, from_base, attack)) {
-            return attack.to(target.first, target.second);
-        }
-    }
-
-    /* non-explorers find the nearest resource */
-    if (!is_explorer && find_resource(game, from_me, from_base)) {
-        return from_me.to(target.first, target.second);
-    }
-
-    /* see dark areas of mymap */ 
-    return find_dark(game, from_me, from_base);
-
-    /* random walk */
-    return Direction(rand() % 4 + 1);
-}
-
-bool AI::find_resource(Game *game, const Search& from_me, const Search& from_base) {
-    const Ant* me = game->getAnt();
-    const int W = game->getMapWidth(), H = game->getMapHeight();
-    const int me_x = me->getX(), me_y = me->getY();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
-    const int viewdist = game->getViewDistance();
-
-    int best_dist = INT_MAX;
-    int me_dist = 0;
-
-    for (int x = 0; x < W; x++)
-    for (int y = 0; y < H; y++) {
-        if (from_me.get_dist(x, y) < 0 || from_base.get_dist(x, y) < 0)
-            continue;
-        const MyCell& cell = mymap.at(x, y);
-        if (cell.get_state() != C_RES)
-            continue;
-        int dist = from_me.get_dist(x, y) + from_base.get_dist(x, y);
-        if (dist < best_dist) {
-            best_dist = dist;
-            me_dist = from_me.get_dist(x, y);
-        }
-        if (dist <= best_dist && from_me.get_dist(x, y) <= me_dist) {
-            best_dist = dist;
-            me_dist = from_me.get_dist(x, y);
-            target = {x, y};
-        }
-    }
-    if (best_dist == INT_MAX)
-        return false;
-    bool is_karger = me->getType() == KARGAR;
-    target_rule = [=] (const MyMap& mymap, const Search& from_me) {
-        return (
-            from_me.to(target.first, target.second) == CENTER ||
-            mymap.at(target.first, target.second).get_state() != C_RES ||
-            is_karger
-        );
-    };
-    return true;
-}
-
-Direction AI::find_dark(Game *game, const Search& from_me, const Search& from_base) {
-    const Ant* me = game->getAnt();
-    const int W = game->getMapWidth(), H = game->getMapHeight();
-    const int me_x = me->getX(), me_y = me->getY();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
-    const int viewdist = game->getViewDistance();
-
-    vector<int> cnt(5, 0);
-    for (int x = 0; x < W; x++)
-    for (int y = 0; y < H; y++)
-    if (from_me.to(x, y) != CENTER) {
-        const MyCell& cell = mymap.at(x, y);
-        if (cell.get_state() != C_UNKNOWN)
-            continue;
-        cnt[(int) from_me.to(x, y)]++;
-    }
-    int dir = max_element(begin(cnt), end(cnt)) - begin(cnt);
-    return Direction(dir);
-}
-
-bool AI::attack_base(Game *game, const Search& from_me, const Search& from_base, const Search& attack) {
-    const Ant* me = game->getAnt();
-    const int W = game->getMapWidth(), H = game->getMapHeight();
-    const int me_x = me->getX(), me_y = me->getY();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
-    const int attackdist = game->getAttackDistance();
-
-    int enemyx = mymap.get_enemyX(), enemyy = mymap.get_enemyY();
-
-    if (me->getType() != SARBAZ || enemyx < 0)
-        return false;
-    if (!is_explorer && count_sarbaz(me->getLocationCell()) < 3)
-        return false;
-
-    int best = INT_MAX, base_dist = 0;
-    for (int dx = -attackdist; dx <= attackdist; dx++)
-    for (int dy = -attackdist; dy <= attackdist; dy++)
-    if (abs(dx) + abs(dy) <= attackdist) {
-        int x = mymap.addmod(enemyx, dx, W);
-        int y = mymap.addmod(enemyy, dy, H);
-        int d1 = attack.get_dist(x, y), d2 = abs(dx) + abs(dy);
-        if (d1 < 0 || d1 + d2 > best)
-            continue;
-        if ((d1 + d2 < best) || (d1 + d2 <= best && d2 < base_dist)) {
-            best = d1 + d2;
-            base_dist = d2;
-            target = {x, y};
-        }
-    }
-
-    if (best == INT_MAX)
-        return false;
-    
-    is_danger = true;
-    target_rule = [=] (const MyMap& mymap, const Search& from_me) {
-        return false;
-    };
-
-    return true;
+    return new Answer(UP, normal_str(response), importance);
 }
