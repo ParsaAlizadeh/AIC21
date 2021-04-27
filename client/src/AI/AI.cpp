@@ -75,6 +75,8 @@ Answer *AI::turn(Game *game) {
 
     /* pre-phase init */
     mymap.init(world->W, world->H, cur_turn);
+    enemymap.init(world->W, world->H);
+
     if (live_turn == 1) {
         is_explorer = (rand() % 5 == 0) && (world->mytype == SARBAZ);
     }
@@ -92,7 +94,8 @@ Answer *AI::turn(Game *game) {
     for (const Chat* chat : game->getChatBox()->getAllChats())
     if (live_turn == 1 || chat->getTurn() == cur_turn - 1) {
         string binary = binary_str(chat->getText());
-        for (int i = 0; i + MyCell::size <= binary.size(); i += MyCell::size) {
+        enemymap.decode(binary.substr(0, EnemyMap::size), chat->getTurn());
+        for (int i = EnemyMap::size; i + MyCell::size <= binary.size(); i += MyCell::size) {
             MyCell cell = MyCell::decode(binary.substr(i, MyCell::size), chat->getTurn());
             mymap.update(cell);
         }
@@ -160,7 +163,11 @@ Answer *AI::turn(Game *game) {
     /* make a response for updates */
     string response;
     int importance;
-    tie(response, importance) = mymap.get_updates(cur_turn, MAX_CHAT_LEN * 7);
+    tie(response, importance) = mymap.get_updates(cur_turn, MAX_CHAT_LEN * 7 - EnemyMap::size);
+
+    response = enemymap.encode(world->me_x, world->me_y, cur_turn) + response;
+    if (enemymap.at(world->me_x, world->me_y) >= cur_turn)
+        importance = max(importance, 3);
     
     return new Answer(finale, normal_str(response), importance);
 }

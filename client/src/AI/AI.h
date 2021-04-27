@@ -5,6 +5,7 @@
 #include "Models/Game.h"
 #include "Models/Answer.h"
 #include "MyMap.h"
+#include "EnemyMap.h"
 #include "Search.h"
 
 struct World {
@@ -42,6 +43,7 @@ private:
     unique_ptr<Search> from_me, from_base;
 
     MyMap mymap;
+    EnemyMap enemymap;
 
     Point target;
     TargetReason reason;
