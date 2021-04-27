@@ -4,6 +4,12 @@
 using namespace std;
 using namespace chrono;
 
+const int MIN_SOLDIER_ATTACK = 2;
+const int MAX_SOLDIER_WAIT = 1;
+const int MAX_TURN_WAIT = 3;
+const int MIN_RES_RETURN = 5;
+const int MAX_CHAT_LEN = 32;
+
 AI::AI() :
     live_turn(0),
     is_explorer(false),
@@ -39,10 +45,10 @@ string AI::binary_str(string normal) {
     return result;
 }
 
-int AI::count_sarbaz(const Cell* cell) {
+int AI::count_sarbaz(const Cell* cell, AntTeam team) {
     const auto& ants = cell->getPresentAnts();
-    return count_if(begin(ants), end(ants), [] (const Ant* ant) {
-        return ant->getTeam() == ALLY && ant->getType() == SARBAZ;
+    return count_if(begin(ants), end(ants), [&] (const Ant* ant) {
+        return ant->getTeam() == team && ant->getType() == SARBAZ;
     });
 }
 
@@ -75,8 +81,8 @@ Answer *AI::turn(Game *game) {
     is_waiting &= (
         world->mytype == SARBAZ &&
         !is_explorer &&
-        live_turn <= 3 &&
-        count_sarbaz(world->me->getLocationCell()) <= 1
+        live_turn <= MAX_TURN_WAIT &&
+        count_sarbaz(world->me->getLocationCell()) <= MAX_SOLDIER_WAIT
     );
     if (is_waiting)
         return new Answer(CENTER);
@@ -154,13 +160,13 @@ Answer *AI::turn(Game *game) {
     /* make a response for updates */
     string response;
     int importance;
-    tie(response, importance) = mymap.get_updates(cur_turn, 32 * 7);
+    tie(response, importance) = mymap.get_updates(cur_turn, MAX_CHAT_LEN * 7);
     
     return new Answer(finale, normal_str(response), importance);
 }
 
 void AI::decide() {
-    if (world->myresource->getValue() >= 5) {
+    if (world->myresource->getValue() >= MIN_RES_RETURN) {
         target = {world->base_x, world->base_y};
         reason = T_PUTBACK;
         return;
@@ -169,6 +175,12 @@ void AI::decide() {
     if (world->mytype == KARGAR) {
         manage_resource();
         if (reason == T_RESOURCE)
+            return;
+    }
+
+    if (world->mytype == SARBAZ) {
+        manage_attack();
+        if (reason == T_ATTACK)
             return;
     }
 }
@@ -191,6 +203,45 @@ bool AI::manage_resource() {
     }
     target = new_res;
     reason = T_RESOURCE;
+    return true;
+}
+
+bool AI::manage_attack() {
+    if (reason == T_ATTACK)
+        return false;
+    int enemy_x = mymap.get_enemyX(), enemy_y = mymap.get_enemyY();
+    if (enemy_x < 0 || count_sarbaz(world->me->getLocationCell()) < MIN_SOLDIER_ATTACK)
+        return false;
+    
+    is_danger = true;
+    from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger));
+
+    vector<Point> options;
+    for (int dx = -world->viewdist; dx <= world->viewdist; dx++)
+    for (int dy = -world->viewdist; dy <= world->viewdist; dy++) 
+    if (abs(dx) + abs(dy) <= world->viewdist) {
+        int x = mymap.addmod(enemy_x, dx, world->W);
+        int y = mymap.addmod(enemy_y, dy, world->H);
+        if (from_me->to(x, y) == CENTER)
+            continue;
+        options.push_back({x, y});
+    }
+    if (options.empty()) {
+        // something must goes wrong
+        is_danger = false;
+        return false;
+    }
+    sort(begin(options), end(options), 
+        [&] (const Point& a, const Point& b) {
+            int a1 = mymap.distance(a.x, a.y, enemy_x, enemy_y);
+            int a2 = from_me->get_dist(a.x, a.y);
+            int b1 = mymap.distance(b.x, b.y, enemy_x, enemy_y);
+            int b2 = from_me->get_dist(b.x, b.y);
+            return (a1 + a2 != b1 + b2) ? (a1 + a2 < b1 + b2) : (a1 < b1);
+        }
+    );
+    target = options[0];
+    reason = T_ATTACK;
     return true;
 }
 

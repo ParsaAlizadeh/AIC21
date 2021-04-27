@@ -27,6 +27,7 @@ struct Point {
 enum TargetReason {
     T_PUTBACK,
     T_RESOURCE,
+    T_ATTACK,
     T_NONE
 };
 
@@ -49,13 +50,14 @@ public:
     Answer* turn(Game *game);
     void decide();
     bool manage_resource();
+    bool manage_attack();
 
     Point find_resource();
     Direction find_dark();
 
     static std::string binary_str(std::string normal);
     static std::string normal_str(std::string binary);
-    static int count_sarbaz(const Cell* cell);
+    static int count_sarbaz(const Cell* cell, AntTeam team = ALLY);
     static bool match_resource(ResourceType restype, CellState state);
 };
 
