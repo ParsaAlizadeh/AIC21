@@ -29,6 +29,7 @@ enum TargetReason {
     T_PUTBACK,
     T_RESOURCE,
     T_ATTACK,
+    T_THREAT,
     T_NONE
 };
 
@@ -53,9 +54,14 @@ public:
     void decide();
     bool manage_resource();
     bool manage_attack();
+    bool manage_threat();
 
     Point find_resource();
+    Point find_threat();
+    
     Direction find_dark();
+    int count_local_enemy();
+    bool is_threat(int x, int y);
 
     static std::string binary_str(std::string normal);
     static std::string normal_str(std::string binary);
