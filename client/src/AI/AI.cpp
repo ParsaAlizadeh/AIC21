@@ -68,6 +68,22 @@ inline bool AI::match_resource(ResourceType restype, CellState state) {
     return false;   // never happens
 }
 
+CellState AI::get_cellstate(const Cell* cell) {
+    auto cell_type = cell->getType();
+    auto res_type = cell->getResource()->getType();
+    if (cell_type == WALL)
+        return C_WALL;
+    if (cell_type == TRAP)
+        return C_TRAP;
+    if (cell_type == SWAMP)
+        return C_SWAMP;
+    if (res_type == BREAD)
+        return C_BREAD;
+    if (res_type == GRASS)
+        return C_GRASS;
+    return C_EMPTY;
+}
+
 Answer *AI::turn(Game *game) {
     /* initialize turn and map */
     live_turn++;
@@ -126,14 +142,7 @@ Answer *AI::turn(Game *game) {
         const Cell* cell = world->me->getNeighborCell(dx, dy);
         if (!cell)
             continue;
-        CellState state = C_EMPTY;
-        if (cell->getType() == WALL)
-            state = C_WALL;
-        auto res_type = cell->getResource()->getType();
-        if (res_type == BREAD)
-            state = C_BREAD;
-        if (res_type == GRASS)
-            state = C_GRASS;
+        CellState state = get_cellstate(cell);
         mymap.update(cell->getX(), cell->getY(), cur_turn, state, true);
     }
 

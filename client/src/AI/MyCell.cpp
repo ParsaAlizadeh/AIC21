@@ -21,6 +21,10 @@ MyCell::MyCell(int x, int y, int lastseen, CellState state, bool self) :
 int MyCell::get_importance() const {
     switch (state) {
     case C_BASE:
+        return 6;
+    case C_TRAP:
+        return 5;
+    case C_SWAMP:
         return 4;
     case C_BREAD:
     case C_GRASS:

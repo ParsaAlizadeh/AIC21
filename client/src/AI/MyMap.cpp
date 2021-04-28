@@ -65,13 +65,14 @@ int MyMap::addmod(int a, int b, int md) {
 
 pair<string, int> MyMap::get_updates(int turn, int max_size) const {
     vector<const MyCell*> cells;
+    set<CellState> fixstates = {C_WALL, C_BASE, C_SWAMP, C_TRAP};
     for (int x = 0; x < W; x++)
     for (int y = 0; y < H; y++) {
         const MyCell& cell = at(x, y);
         if (!cell.is_self())
             continue;
         CellState state = cell.get_state();
-        if (state != C_WALL && state != C_BASE && cell.get_seen() < turn)
+        if (!fixstates.count(state) && cell.get_seen() < turn)
             continue;
         cells.push_back(&cell);
     }

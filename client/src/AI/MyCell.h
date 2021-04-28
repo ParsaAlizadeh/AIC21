@@ -7,6 +7,8 @@ enum CellState {
     C_WALL,
     C_BREAD,
     C_GRASS,
+    C_TRAP,
+    C_SWAMP,
     C_BASE,
     C_UNKNOWN
 };

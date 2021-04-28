@@ -67,6 +67,7 @@ public:
     static std::string normal_str(std::string binary);
     static int count_sarbaz(const Cell* cell, AntTeam team = ALLY);
     static bool match_resource(ResourceType restype, CellState state);
+    static CellState get_cellstate(const Cell* cell);
 };
 
 #endif // AIC21_CLIENT_CPP_AI_H
