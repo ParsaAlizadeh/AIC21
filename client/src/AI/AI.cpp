@@ -165,9 +165,11 @@ Answer *AI::turn(Game *game) {
         cout << state << " " << is_self << " " << is_threat(i, j) << " \n"[j==world->H-1];
     }
 
-    /* pre search map */
-    from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger));
-    from_base = unique_ptr<Search>(new Search(mymap, world->base_x, world->base_y, false));
+    {/* pre search map */
+        bool trap = world->myresource->getValue() == 0;
+        from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger, trap));
+        from_base = unique_ptr<Search>(new Search(mymap, world->base_x, world->base_y, false, false));
+    }
 
     /* decide where */
     if (reason != T_NONE && from_me->to(target.x, target.y) == CENTER) {
@@ -251,7 +253,7 @@ bool AI::manage_attack() {
         return false;
     
     is_danger = true;
-    from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger));
+    from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger, true));
 
     vector<Point> options;
     for (int dx = -world->viewdist; dx <= world->viewdist; dx++)
