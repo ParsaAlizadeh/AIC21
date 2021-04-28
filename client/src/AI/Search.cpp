@@ -2,6 +2,8 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+const int INF = 1e4;
+
 Search::Search(const MyMap& mymap, int cx, int cy, bool danger) :
     mymap(mymap),
     W(mymap.getW()),
@@ -24,15 +26,20 @@ Search::Search(const MyMap& mymap, int cx, int cy, bool danger) :
         for (int i : _dir) {
             int vx = mymap.addmod(ux, dirx[i], W);
             int vy = mymap.addmod(uy, diry[i], H);
-            if (dist[vx][vy] >= 0)
-                continue;
+			int cost = 1;
             if (!danger && mymap.is_danger(vx, vy))
-                continue;
+                cost = 10 * INF;
             const MyCell& vcell = mymap.at(vx, vy);
             if (vcell.get_state() == C_WALL)
                 continue;
+			if (vcell.get_state() == C_TRAP)
+				cost = INF;
+			if (vcell.get_state() == C_SWAMP)
+				cost = 3;
+			if (dist[vx][vy] != -1 && dist[vx][vy] <= dist[ux][uy] + cost)
+				continue;
             q.push(vx); q.push(vy);
-            dist[vx][vy] = dist[ux][uy] + 1;
+            dist[vx][vy] = dist[ux][uy] + cost;
             nxt[vx][vy] = (dist[ux][uy] == 0 ? Direction(i) : nxt[ux][uy]);
         }
     }
