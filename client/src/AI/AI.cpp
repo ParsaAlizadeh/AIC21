@@ -4,7 +4,7 @@
 using namespace std;
 using namespace chrono;
 
-const int MIN_SOLDIER_ATTACK = 2;
+const int MIN_SOLDIER_ATTACK = 3;
 
 const int MAX_SOLDIER_WAIT = 1;
 const int MAX_TURN_WAIT = 3;
