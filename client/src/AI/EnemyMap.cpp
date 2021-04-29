@@ -2,13 +2,15 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+const int INF = 1e4;
+
 EnemyMap::EnemyMap() : W(0), H(0) {}
 
 void EnemyMap::init(int w, int h) {
     if (W == 0) {
         W = w;
         H = h;
-        data.assign(W, vector<int>(H, INT_MIN));
+        data.assign(W, vector<int>(H, -INF));
     }
 }
 
