@@ -232,12 +232,6 @@ bool AI::manage_resource() {
     Point new_res = find_resource();
     if (new_res.x < 0)
         return false;
-    if (reason == T_RESOURCE) {
-        int now = from_me->get_dist(new_res.x, new_res.y);
-        int last = from_me->get_dist(target.x, target.y);
-        if (last >= 0 && last <= now)
-            return false;
-    }
     target = new_res;
     reason = T_RESOURCE;
     return true;
@@ -293,12 +287,6 @@ bool AI::manage_threat() {
     Point new_threat = find_threat();
     if (new_threat.x < 0)
         return false;
-    if (reason == T_THREAT) {
-        int last = from_me->get_dist(target.x, target.y);
-        int now = from_me->get_dist(new_threat.x, new_threat.y);
-        if (last >= 0 && last <= now)
-            return false;
-    }
     target = new_threat;
     reason = T_THREAT;
     return true;
