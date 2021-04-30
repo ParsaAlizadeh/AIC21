@@ -15,7 +15,7 @@ private:
     vector<vector<int>> dist;
     vector<vector<Direction>> nxt;
 public:
-    Search(const MyMap& mymap, int cx, int cy, bool danger, bool trap);
+    Search(const MyMap& mymap, int cx, int cy);
     int get_dist(int x, int y) const { return dist[x][y]; }
     Direction to(int x, int y) const { return nxt[x][y]; }
 };
