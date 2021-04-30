@@ -9,8 +9,6 @@ const int MIN_SOLDIER_ATTACK = 3;
 const int MAX_SOLDIER_WAIT = 1;
 const int MAX_TURN_WAIT = 3;
 
-const int MIN_RES_RETURN = 5;
-
 const int MAX_CHAT_LEN = 32;
 
 const int MIN_ENEMY_THREAT = 2;
@@ -18,9 +16,6 @@ const int MAX_LAST_THREAT = 5;
 
 AI::AI() :
     live_turn(0),
-    is_explorer(false),
-    is_danger(false),
-    is_waiting(true),
     reason(T_NONE)
 {
     auto rseed = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
@@ -58,29 +53,11 @@ int AI::count_sarbaz(const Cell* cell, AntTeam team) {
     });
 }
 
-inline bool AI::match_resource(ResourceType restype, CellState state) {
-    if (restype == NONE)
-        return state == C_GRASS || state == C_BREAD;
-    if (restype == GRASS)
-        return state == C_GRASS;
-    if (restype == BREAD)
-        return state == C_BREAD;
-    return false;   // never happens
-}
-
 CellState AI::get_cellstate(const Cell* cell) {
     auto cell_type = cell->getType();
     auto res_type = cell->getResource()->getType();
     if (cell_type == WALL)
         return C_WALL;
-    if (cell_type == TRAP)
-        return C_TRAP;
-    if (cell_type == SWAMP)
-        return C_SWAMP;
-    if (res_type == BREAD)
-        return C_BREAD;
-    if (res_type == GRASS)
-        return C_GRASS;
     return C_EMPTY;
 }
 
@@ -99,19 +76,6 @@ Answer *AI::turn(Game *game) {
     mymap.init(world->W, world->H, cur_turn);
     enemymap.init(world->W, world->H);
 
-    if (live_turn == 1) {
-        is_explorer = (rand() % 5 == 0) && (world->mytype == SARBAZ);
-    }
-    is_waiting &= (
-        world->mytype == SARBAZ &&
-        !is_explorer &&
-        live_turn <= MAX_TURN_WAIT &&
-        count_sarbaz(world->me->getLocationCell()) <= MAX_SOLDIER_WAIT
-    );
-    if (is_waiting)
-        return new Answer(CENTER);
-
-
     /* read messages */
     for (const Chat* chat : game->getChatBox()->getAllChats())
     if (live_turn == 1 || chat->getTurn() == cur_turn - 1) {
@@ -120,19 +84,6 @@ Answer *AI::turn(Game *game) {
         for (int i = EnemyMap::size; i + MyCell::size <= binary.size(); i += MyCell::size) {
             MyCell cell = MyCell::decode(binary.substr(i, MyCell::size), chat->getTurn());
             mymap.update(cell);
-        }
-    }
-
-    /* find base attacks */
-    for (const Attack* attack : game->getAttacks()) {
-        if (!attack->isAttackerEnemy())
-            continue;
-        int x1 = attack->getAttackerColumn();
-        int y1 = attack->getAttackerRow();
-        int x2 = attack->getDefenderColumn();
-        int y2 = attack->getDefenderRow();
-        if (mymap.distance(x1, y1, x2, y2) > game->getAttackDistance()) {
-            mymap.update(x1, y1, cur_turn, C_BASE, true);
         }
     }
 
@@ -166,9 +117,7 @@ Answer *AI::turn(Game *game) {
     }
 
     {/* pre search map */
-        bool trap = world->myresource->getValue() == 0;
-        from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger, trap));
-        from_base = unique_ptr<Search>(new Search(mymap, world->base_x, world->base_y, false, false));
+        from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y));
     }
 
     /* decide where */
@@ -199,12 +148,6 @@ Answer *AI::turn(Game *game) {
 }
 
 void AI::decide() {
-    if (world->myresource->getValue() >= MIN_RES_RETURN) {
-        target = {world->base_x, world->base_y};
-        reason = T_PUTBACK;
-        return;
-    }
-
     if (world->mytype == SARBAZ) {
         manage_attack();
         if (reason == T_ATTACK)
@@ -214,73 +157,54 @@ void AI::decide() {
         if (reason == T_THREAT)
             return;
     }
-
-    manage_resource();
-    if (reason == T_RESOURCE)
-        return;
-}
-
-bool AI::manage_resource() {
-    if (is_explorer)
-        return false;
-    if (reason == T_RESOURCE) {
-        CellState state = mymap.at(target.x, target.y).get_state();
-        if (!match_resource(world->myresource->getType(), state)) {
-            reason = T_NONE;
-        }
-    }
-    Point new_res = find_resource();
-    if (new_res.x < 0)
-        return false;
-    target = new_res;
-    reason = T_RESOURCE;
-    return true;
+    
+    /* something for queen here */
 }
 
 bool AI::manage_attack() {
-    if (reason == T_ATTACK)
-        return false;
-    int enemy_x = mymap.get_enemyX(), enemy_y = mymap.get_enemyY();
-    if (enemy_x < 0)
-        return false;
-    if (!is_explorer && count_sarbaz(world->me->getLocationCell()) < MIN_SOLDIER_ATTACK)
-        return false;
+    return false;
+    // same as old but should be changed
+    // if (reason == T_ATTACK)
+    //     return false;
+    // int enemy_x = mymap.get_enemyX(), enemy_y = mymap.get_enemyY();
+    // if (enemy_x < 0)
+    //     return false;
+    // if (!is_explorer && count_sarbaz(world->me->getLocationCell()) < MIN_SOLDIER_ATTACK)
+    //     return false;
     
-    is_danger = true;
-    from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger, true));
+    // is_danger = true;
+    // from_me = unique_ptr<Search>(new Search(mymap, world->me_x, world->me_y, is_danger, true));
 
-    vector<Point> options;
-    for (int dx = -world->viewdist; dx <= world->viewdist; dx++)
-    for (int dy = -world->viewdist; dy <= world->viewdist; dy++) 
-    if (abs(dx) + abs(dy) <= world->viewdist) {
-        int x = mymap.addmod(enemy_x, dx, world->W);
-        int y = mymap.addmod(enemy_y, dy, world->H);
-        if (from_me->to(x, y) == CENTER)
-            continue;
-        options.push_back({x, y});
-    }
-    if (options.empty()) {
-        // something must goes wrong
-        is_danger = false;
-        return false;
-    }
-    sort(begin(options), end(options), 
-        [&] (const Point& a, const Point& b) {
-            int a1 = mymap.distance(a.x, a.y, enemy_x, enemy_y);
-            int a2 = from_me->get_dist(a.x, a.y);
-            int b1 = mymap.distance(b.x, b.y, enemy_x, enemy_y);
-            int b2 = from_me->get_dist(b.x, b.y);
-            return (a1 + a2 != b1 + b2) ? (a1 + a2 < b1 + b2) : (a1 < b1);
-        }
-    );
-    target = options[0];
-    reason = T_ATTACK;
-    return true;
+    // vector<Point> options;
+    // for (int dx = -world->viewdist; dx <= world->viewdist; dx++)
+    // for (int dy = -world->viewdist; dy <= world->viewdist; dy++) 
+    // if (abs(dx) + abs(dy) <= world->viewdist) {
+    //     int x = mymap.addmod(enemy_x, dx, world->W);
+    //     int y = mymap.addmod(enemy_y, dy, world->H);
+    //     if (from_me->to(x, y) == CENTER)
+    //         continue;
+    //     options.push_back({x, y});
+    // }
+    // if (options.empty()) {
+    //     // something must goes wrong
+    //     is_danger = false;
+    //     return false;
+    // }
+    // sort(begin(options), end(options), 
+    //     [&] (const Point& a, const Point& b) {
+    //         int a1 = mymap.distance(a.x, a.y, enemy_x, enemy_y);
+    //         int a2 = from_me->get_dist(a.x, a.y);
+    //         int b1 = mymap.distance(b.x, b.y, enemy_x, enemy_y);
+    //         int b2 = from_me->get_dist(b.x, b.y);
+    //         return (a1 + a2 != b1 + b2) ? (a1 + a2 < b1 + b2) : (a1 < b1);
+    //     }
+    // );
+    // target = options[0];
+    // reason = T_ATTACK;
+    // return true;
 }
 
 bool AI::manage_threat() {
-    if (is_explorer)
-        return false;
     if (reason == T_THREAT && !is_threat(target.x, target.y)) {
         reason = T_NONE;
     }
@@ -290,33 +214,6 @@ bool AI::manage_threat() {
     target = new_threat;
     reason = T_THREAT;
     return true;
-}
-
-Point AI::find_resource() {
-    vector<Point> options;
-    ResourceType restype = world->myresource->getType();
-    for (int x = 0; x < world->W; x++)
-    for (int y = 0; y < world->H; y++) {
-        const MyCell& mycell = mymap.at(x, y);
-        if (!match_resource(restype, mycell.get_state()))
-            continue;
-        if (from_me->get_dist(x, y) < 0 || from_base->get_dist(x, y) < 0)
-            continue;
-        options.push_back({x, y});
-    }
-    if (options.empty())
-        return {-1, -1};
-    random_shuffle(begin(options), end(options));
-    stable_sort(begin(options), end(options), 
-        [&] (const Point& a, const Point& b) {
-            int a1 = from_me->get_dist(a.x, a.y);
-            int a2 = from_base->get_dist(a.x, a.y);
-            int b1 = from_me->get_dist(b.x, b.y);
-            int b2 = from_base->get_dist(b.x, b.y);
-            return (a1 + a2 != b1 + b2) ? (a1 + a2 < b1 + b2) : (a1 < b1);
-        }
-    );
-    return options[0];
 }
 
 Point AI::find_threat() {
