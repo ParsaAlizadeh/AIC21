@@ -14,9 +14,7 @@ struct World {
     const int W = game->getMapWidth(), H = game->getMapHeight();
     const int me_x = me->getX(), me_y = me->getY();
     const AntType mytype = me->getType();
-    const int base_x = game->getBaseX(), base_y = game->getBaseY();
     const int viewdist = game->getViewDistance();
-    const Resource* myresource = me->getCurrentResource();
 
     World(const Game* game) : game(game) {}
 };
