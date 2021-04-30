@@ -2,7 +2,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-MyMap::MyMap() : enemyX(-1), enemyY(-1) {}
+MyMap::MyMap() {}
 
 void MyMap::init(int w, int h, int turn) {
     if (W == 0) {
@@ -22,13 +22,7 @@ const MyCell& MyMap::at(int x, int y) const {
 
 void MyMap::update(int x, int y, int turn, CellState state, bool self) {
     const MyCell& lastcell = at(x, y);
-    if (state == C_BASE) {
-        enemyX = x;
-        enemyY = y;
-    }
     if (state != lastcell.get_state()) {
-        if (lastcell.get_state() == C_BASE)
-            return;
         data[x][y] = MyCell(x, y, turn, state, self);
         return;
     }
@@ -52,12 +46,6 @@ int MyMap::distance(int x1, int y1, int x2, int y2) const {
     return dx + dy;
 }
 
-bool MyMap::is_danger(int x, int y) const {
-    if (enemyX < 0 || enemyY < 0)
-        return false;
-    return distance(x, y, enemyX, enemyY) <= 6;
-}
-
 int MyMap::addmod(int a, int b, int md) {
     int c = (a + b) % md;
     return c < 0 ? c + md : c;
@@ -65,14 +53,13 @@ int MyMap::addmod(int a, int b, int md) {
 
 pair<string, int> MyMap::get_updates(int turn, int max_size) const {
     vector<const MyCell*> cells;
-    set<CellState> fixstates = {C_WALL, C_BASE, C_SWAMP, C_TRAP};
     for (int x = 0; x < W; x++)
     for (int y = 0; y < H; y++) {
         const MyCell& cell = at(x, y);
         if (!cell.is_self())
             continue;
         CellState state = cell.get_state();
-        if (!fixstates.count(state) && cell.get_seen() < turn)
+        if (state != C_WALL && cell.get_seen() < turn)
             continue;
         cells.push_back(&cell);
     }

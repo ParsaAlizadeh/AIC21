@@ -5,11 +5,6 @@ using namespace std;
 enum CellState {
     C_EMPTY,
     C_WALL,
-    C_BREAD,
-    C_GRASS,
-    C_TRAP,
-    C_SWAMP,
-    C_BASE,
     C_UNKNOWN
 };
 
