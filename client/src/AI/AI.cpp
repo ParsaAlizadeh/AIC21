@@ -131,7 +131,7 @@ Answer *AI::turn(Game *game) {
     if (reason != T_NONE) {
         finale = from_me->to(target.x, target.y);
     }
-    else {
+    else if (world->mytype == SARBAZ) {
         finale = find_dark();
     }
 
